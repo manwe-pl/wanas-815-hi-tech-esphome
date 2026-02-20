@@ -84,8 +84,7 @@ modbus_controller:
 # SENSORS (READ-ONLY)
 # ==============================================================================
 sensor:
-  # --- Temperatures ---
-  # Note: S_WORD is used to support negative temperatures (Two's Complement).
+  # --- Temperatures (with 1-decimal precision) ---
   - platform: modbus_controller
     modbus_controller_id: wanas
     name: "Outside Temperature"
@@ -98,6 +97,11 @@ sensor:
     accuracy_decimals: 1
     filters:
       - multiply: 0.1
+      # Clamp ensures values stay within reasonable limits (-50 to 100)
+      - clamp:
+          min_value: -50.0
+          max_value: 100.0
+          ignore_out_of_range: true # This makes it drop the 6553.5 instead of rounding it
 
   - platform: modbus_controller
     modbus_controller_id: wanas
@@ -111,6 +115,10 @@ sensor:
     accuracy_decimals: 1
     filters:
       - multiply: 0.1
+      - clamp:
+          min_value: -50.0
+          max_value: 100.0
+          ignore_out_of_range: true
 
   - platform: modbus_controller
     modbus_controller_id: wanas
@@ -124,6 +132,10 @@ sensor:
     accuracy_decimals: 1
     filters:
       - multiply: 0.1
+      - clamp:
+          min_value: -50.0
+          max_value: 100.0
+          ignore_out_of_range: true
 
   - platform: modbus_controller
     modbus_controller_id: wanas
@@ -137,6 +149,10 @@ sensor:
     accuracy_decimals: 1
     filters:
       - multiply: 0.1
+      - clamp:
+          min_value: -50.0
+          max_value: 100.0
+          ignore_out_of_range: true
 
   - platform: modbus_controller
     modbus_controller_id: wanas
@@ -150,8 +166,12 @@ sensor:
     accuracy_decimals: 1
     filters:
       - multiply: 0.1
+      - clamp:
+          min_value: -50.0
+          max_value: 100.0
+          ignore_out_of_range: true
 
-  # --- Humidity ---
+  # --- Humidity (with 1-decimal precision) ---
   - platform: modbus_controller
     modbus_controller_id: wanas
     name: "Room Humidity"
@@ -164,8 +184,12 @@ sensor:
     accuracy_decimals: 1
     filters:
       - multiply: 0.1
+      - clamp:
+          min_value: 0.0
+          max_value: 100.0
+          ignore_out_of_range: true
 
-  # --- Airflows ---
+  # --- Airflows (Integer) ---
   - platform: modbus_controller
     modbus_controller_id: wanas
     name: "Supply Airflow"
@@ -175,6 +199,11 @@ sensor:
     unit_of_measurement: "m³/h"
     icon: "mdi:fan-plus"
     state_class: measurement
+    filters:
+      - clamp:
+          min_value: 0.0
+          max_value: 2000.0
+          ignore_out_of_range: true
 
   - platform: modbus_controller
     modbus_controller_id: wanas
@@ -185,6 +214,11 @@ sensor:
     unit_of_measurement: "m³/h"
     icon: "mdi:fan-minus"
     state_class: measurement
+    filters:
+      - clamp:
+          min_value: 0.0
+          max_value: 2000.0
+          ignore_out_of_range: true
 
 # ==============================================================================
 # STATUS FLAGS (READ-ONLY)
