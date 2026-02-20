@@ -81,6 +81,9 @@ During my reverse engineering, I discovered several hardcoded limitations in the
 ## 🚀 ESPHome Integration
 A complete, ready-to-use configuration file (`esphome.yaml`) is included in this repository. It maps all the above registers into native Home Assistant entities (Sensors, Switches, Numbers, and Selects) with proper unit conversions and icons.
 
+⚠️ Crucial ESPHome UART Fix:
+Due to a known hardware timing quirk in ESP32 microcontrollers regarding the RS485 flow_control_pin switching too early and cutting off the last Modbus bit, you must use stop_bits: 2 and enable an internal pullup on the rx_pin (as shown in the provided esphome.yaml). This injects an extra empty bit to absorb the cutoff and guarantees flawless communication with the Wanas controller.
+
 ## 🛠️ Contributing & Final Thoughts
 **Disclaimer:** This entire reverse-engineering process and documentation is the result of a single afternoon's work. While I tested it thoroughly on my own hardware, the Modbus implementation of Tech Controllers can be quite quirky and undocumented.
 
