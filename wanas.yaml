@@ -21,6 +21,33 @@ logger:
 api:
   encryption:
     key: !secret api_key
+  services:
+    - service: sync_wanas_time
+      then:
+        - lambda: |-
+            auto now = id(sntp_time).now();
+            if (!now.is_valid()) {
+              ESP_LOGW("wanas_sync", "Wrong time.");
+              return;
+            }
+
+            uint16_t date_val = ((now.day_of_month & 0x1F) << 11) |
+                                ((now.month & 0x0F) << 7) |
+                                ((now.year - 2000) & 0x7F);
+
+            uint16_t time_val = ((now.hour & 0xFF) << 8) |
+                                (now.minute & 0xFF);
+
+            ESP_LOGI("wanas_sync", "Date and time synchronization: %04d-%02d-%02d %02d:%02d", 
+                     now.year, now.month, now.day_of_month, now.hour, now.minute);
+
+            auto call_d = id(wanas_raw_date_reg).make_call();
+            call_d.set_value(date_val);
+            call_d.perform();
+
+            auto call_t = id(wanas_raw_time_reg).make_call();
+            call_t.set_value(time_val);
+            call_t.perform();
 
 ota:
   - platform: esphome
@@ -272,6 +299,52 @@ number:
     step: 15
     unit_of_measurement: "min"
     icon: "mdi:party-popper"
+
+  - platform: modbus_controller
+    modbus_controller_id: wanas
+    id: wanas_raw_date_reg
+    register_type: holding
+    address: 50
+    value_type: U_WORD
+    internal: true
+    min_value: 0
+    max_value: 65535
+    step: 1
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: wanas
+    id: wanas_raw_time_reg
+    register_type: holding
+    address: 51
+    value_type: U_WORD
+    internal: true
+    min_value: 0
+    max_value: 65535
+    step: 1
+    entity_category: diagnostic
+
+text_sensor:
+  - platform: template
+    name: "Wanas Current Clock"
+    icon: mdi:clock-digital
+    lambda: |-
+      if (isnan(id(wanas_raw_date_reg).state) || isnan(id(wanas_raw_time_reg).state)) {
+        return {"Init..."};
+      }
+      const uint16_t d_reg = (uint16_t)id(wanas_raw_date_reg).state;
+      const uint16_t t_reg = (uint16_t)id(wanas_raw_time_reg).state;
+
+      int y = 2000 + (d_reg & 0x7F);
+      int m = (d_reg >> 7) & 0x0F;
+      int d = (d_reg >> 11) & 0x1F;
+      int hr = (t_reg >> 8) & 0xFF;
+      int min = t_reg & 0xFF;
+
+      char buf[32];
+      sprintf(buf, "%04d-%02d-%02d %02d:%02d", y, m, d, hr, min);
+      return {buf};
+    update_interval: 15s
 
 select:
   # Note: Wanas physical wall panel MUST be set to "Manual" mode for 
