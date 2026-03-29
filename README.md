@@ -49,6 +49,14 @@ Temperatures are stored as 16-bit integers. You must multiply them by `0.1` to g
 | `029` | Supply Temp. (Nawiewana) | `int16` | Temperature of air supplied to the rooms. |
 | `055` | Room Humidity | `uint16` | **[Add-on]** From the room sensor. Multiply by 0.1 (e.g., `389` = 38.9%). |
 
+### 🕒 Date & Time (Read / Write)
+These registers handle the internal Real-Time Clock (RTC). They are stored in a bit-packed format to fit multiple values into a single 16-bit register.
+
+| Register | Name / Description | Format | Notes |
+| :---: | :--- | :---: | :--- |
+| `050` | System Date | `uint16` | Bit-packed: `(day << 11) \| (month << 7) \| (year - 2000)` |
+| `051` | System Time | `uint16` | Bit-packed: `(hour << 8) \| minute` |
+
 ### 🚩 Operation Flags / Statuses (Read-Only)
 These registers appear (value `1`) when a physical action is happening and disappear/reset when it stops.
 
@@ -78,8 +86,27 @@ During my reverse engineering, I discovered several hardcoded limitations in the
 
 *Workaround:* For a fully functional Smart Home integration, leave the physical wall panel permanently in "Manual" mode. Replicate your schedules using Home Assistant automations (e.g., changing gears based on time or triggering Party Mode based on bathroom humidity).
 
+## 📅 Date & Time Synchronization (RTC)
+
+The unit stores its internal system date and time in a bit-packed format within two 16-bit registers. This is crucial for fixing the common "clock drift" issue in Tech Controllers boards.
+
+### Bit-Packing Logic
+* **Register 050 (Date):** * `Day`: bits 11-15
+    * `Month`: bits 7-10
+    * `Year (offset from 2000)`: bits 0-6
+* **Register 051 (Time):**
+    * `Hour`: High Byte (bits 8-15)
+    * `Minute`: Low Byte (bits 0-7)
+
+### ⚠️ The "Year 2106" ESPHome Bug
+Despite dozens of attempts to use the native ESPHome `datetime` component, there is a persistent bug in the communication between ESPHome (v2026.3.1) and Home Assistant (v2026.3.3). When passing a decoded `ESPTime` object, the API incorrectly calculates the 32-bit timestamp, resulting in Home Assistant displaying a locked date of **February 7, 2106**.
+
+**The Workaround:** The provided configuration uses a `text_sensor` to display the unit's time as a string and an **ESPHome Native API Service** (`sync_wanas_time`) to push the correct time from Home Assistant to the unit. This bypasses the broken `datetime` validation and ensures perfect synchronization for DST (Summer/Winter time) changes.
+
 ## 🚀 ESPHome Integration
 A complete, ready-to-use configuration file (`esphome.yaml`) is included in this repository. It maps all the above registers into native Home Assistant entities (Sensors, Switches, Numbers, and Selects) with proper unit conversions and icons.
+
+To synchronize the clock, call the following service from a Home Assistant automation (e.g., once a day at 03:00): `esphome.wanas_sync_wanas_time`
 
 ⚠️ Crucial ESPHome UART Fix:
 Due to a known hardware timing quirk in ESP32 microcontrollers regarding the RS485 flow_control_pin switching too early and cutting off the last Modbus bit, you must use stop_bits: 2 and enable an internal pullup on the rx_pin (as shown in the provided esphome.yaml). This injects an extra empty bit to absorb the cutoff and guarantees flawless communication with the Wanas controller.
